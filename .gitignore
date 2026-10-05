@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.env
+
+# Note : "media/*" (contenu) et non "media/" (dossier), sinon Git ne
+# descend même pas dedans et "!media/.gitkeep" n'a aucun effet.
+media/*
+!media/.gitkeep
+*.pt
+!models/.gitkeep
+# Poids YOLO volontairement exclus de git (binaires lourds) ; sont
+# re-téléchargeables via ai_service/scripts/download_plate_model.sh
+.venv/
+venv/
+.DS_Store
+*.log
+.streamlit/
+*.sqlite3
+.pytest_cache/
+.ruff_cache/

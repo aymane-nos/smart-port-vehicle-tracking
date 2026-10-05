@@ -10,7 +10,15 @@ touche jamais tes données de démo (seedées via scripts/seed_fake_data.py)
 sur la vraie base Postgres.
 """
 import os
+import sys
 from pathlib import Path
+
+# Ajout explicite du dossier backend/ (parent de tests/) à sys.path, pour que
+# `from database import ...` et `from main import app` fonctionnent quelle
+# que soit la façon dont pytest est invoqué (`pytest` vs `python -m pytest`
+# se comportent différemment sur l'insertion automatique du cwd dans
+# sys.path — GitHub Actions utilise le premier, ce qui cassait l'import).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 TEST_DB_PATH = Path(__file__).parent / "test_db.sqlite3"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"

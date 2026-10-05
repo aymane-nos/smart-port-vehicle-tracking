@@ -1,0 +1,18 @@
+# Normalise toutes les fins de ligne en LF (Unix) dans le dépôt, quelle que
+# soit la plateforme sur laquelle Git tourne. Important ici : les scripts
+# .sh (ex: ai_service/scripts/download_plate_model.sh) s'exécutent DANS des
+# conteneurs Linux — s'ils sont commités avec des fins de ligne CRLF
+# (comportement par défaut de Git sur Windows), bash échoue avec une erreur
+# "bad interpreter: /bin/bash^M: no such file or directory".
+* text=auto eol=lf
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# Fichiers binaires : jamais de conversion de fin de ligne
+*.pt binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.sqlite3 binary
+*.zip binary

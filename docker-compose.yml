@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sp_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sp_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sp_network
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+
+  ai-service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: sp_ai_service
+    # "on-failure" plutôt que "unless-stopped" : avec une source vidéo fichier
+    # (test), le script se termine proprement en fin de vidéo (exit code 0) —
+    # on ne veut PAS que Docker le relance à l'infini dans ce cas. Il ne
+    # redémarre qu'en cas de vrai crash (exit code non-zéro), ce qui reste
+    # utile en prod avec un flux RTSP caméra qui planterait.
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      BACKEND_API_URL: http://backend:8000/api/v1
+      VIDEO_SOURCE: ${VIDEO_SOURCE:-0}
+    volumes:
+      - ./ai_service:/app
+      - ./media:/app/media
+    depends_on:
+      - backend
+    networks:
+      - sp_network
+    # Décommenter pour usage GPU (nécessite nvidia-container-toolkit) :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: sp_dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BACKEND_API_URL: http://backend:8000/api/v1
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    depends_on:
+      - backend
+    networks:
+      - sp_network
+
+networks:
+  sp_network:
+    driver: bridge
+
+volumes:
+  pg_data:
+
